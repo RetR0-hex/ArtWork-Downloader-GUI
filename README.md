@@ -28,7 +28,7 @@ to automatically download python requirements use
 
 (btw this was my first time writting a GUI so please go easy on me :) )
 
-**If you want to run it from my source code, please run the ArtWork Downloader.py file not the ArtWork Downloader.py file.**
+**If you want to run it from my source code, please run the ArtWork Downloader.py file.**
 
 #### IN ACTION
 ![IN ACTION](https://i.imgur.com/HXUXYRv.gif)
