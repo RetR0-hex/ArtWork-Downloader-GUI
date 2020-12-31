@@ -1,0 +1,6 @@
+requests==2.23.0
+selenium==3.141.0
+webdriver_manager==3.2.2
+urllib3==1.25.8
+
+PySimpleGUI~=4.32.1
