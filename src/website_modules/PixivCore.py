@@ -33,7 +33,7 @@ class PixivCore:
             self.artist_link = self.artist_link + '/'
         self.artist_id = re.search(r'(?!users/")\d+/', self.artist_link).group()
         self.artist_id = re.sub(r"\/", "", self.artist_id)
-        self.artist_name = self.get_artist_name()
+        self.artist_name = gen.make_windows_legal(self.get_artist_name())
 
         if self.arguments.username:
             self.chrome = gen.WebDriverChrome()
