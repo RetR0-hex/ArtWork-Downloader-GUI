@@ -4,7 +4,7 @@ import os
 import time
 import threading
 from src.utils.txtDatabaseHandling import dict_to_json
-from src.utils.general import url_validator, artwork_url_verifier, image_counter, save_dir_global, successful_download_dict, ProgVars
+from src.utils.general import url_validator, artwork_url_verifier, image_counter, save_dir_global, successful_download_dict, ProgVars, print_Queue
 
 
 root_dir = os.path.dirname(os.path.abspath(__file__))
@@ -49,7 +49,7 @@ debug_window_layout = [[sg.T("Debug Window", key="-DEBUG WINDOW-")],
 download_button = [[sg.Button('Download')]]
 
 progress_bar_layout = [[sg.ProgressBar(100, orientation='h', size=(56.5, 20), key="progress_bar")],
-                       [sg.Text("0%", size=(5, 0), pad=((589, 0), (7, 0)), justification='left', key='counter')]]
+                       [sg.Text("0%", size=(5, 0), pad=((590, 0), (7, 0)), justification='left', key='counter')]]
 
 layout = [[sg.Text("Please Artist's gallery URL.")],
 [sg.Text('Artist URL', size=(15, 1)), sg.InputText('', key="URL")],
@@ -163,6 +163,11 @@ while True:
         percentage = 0
 
     window.FindElement('counter').Update(f"{percentage}%")
+
+    # Prints the whole info queue at each loop cycle
+    while print_Queue.qsize() is not 0:
+        print(print_Queue.get())
+
 window.Close()
 
 

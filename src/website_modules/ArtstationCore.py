@@ -10,7 +10,7 @@ from multiprocessing.dummy import Pool as ThreadPool
 from multiprocessing import cpu_count
 from src.utils import general as gen
 from src.utils.txtDatabaseHandling import json_to_dict
-from src.utils.general import image_counter, successful_download_dict
+from src.utils.general import image_counter, successful_download_dict, print_Queue
 
 
 class ArtstationCore:
@@ -36,7 +36,7 @@ class ArtstationCore:
         image_count = 0
         artwork_list = []
         while True:
-            print("Getting Image Links (Don't Panic)")
+            print_Queue.put("Getting Image Links (Don't Panic)")
             params = {
                 'page': page_count
             }
@@ -75,7 +75,7 @@ class ArtstationCore:
     def download_artwork(self, save_dir, url, title):
         ext = self.ext_finder(url)
         # Image_counter.increments() ads +1 to the class member "val" and returns val after the increment
-        print(f"Currently Downloading: {title} ({str(image_counter.increment())}/{str(image_counter.max)})")
+        print_Queue.put(f"Currently Downloading: {title} ({str(image_counter.increment())}/{str(image_counter.max)})")
         _4k_url = re.sub(r"large", "4k", url)
         # 4k Check
         try:
@@ -91,8 +91,8 @@ class ArtstationCore:
                 for chunk in r_stream:
                     file.write(chunk)
             except Exception as e:
-                print(f"{title}")
-                print(f"Error {e}")
+                print_Queue.put(f"{title}")
+                print_Queue.put(f"Error {e}")
 
     def multi_assets_download(self, save_dir, artwork, check_existing):
         # Already downloaded images Check
@@ -105,7 +105,7 @@ class ArtstationCore:
             if gen.check_existing_images(self.existing_images, artwork['hash_id']):
                 image_counter.val += 1
                 successful_download_dict.append(current_info)
-                print(f"Title: {artwork['title']}, Link: {artwork['permalink']} is already present.")
+                print_Queue.put(f"Title: {artwork['title']}, Link: {artwork['permalink']} is already present.")
                 return
 
         artwork_extended_fetch = self.extended_artwork_fetch(artwork)
@@ -138,4 +138,4 @@ class ArtstationCore:
         pool.map(partial(self.multi_assets_download, save_dir, check_existing=backup), artworks)
         pool.close()
         pool.join()
-        print(f'Time to Download: {time.strftime("%H:%M:%S", time.gmtime(int(time.time() - starting_time)))}')
+        print_Queue.put(f'Time to Download: {time.strftime("%H:%M:%S", time.gmtime(int(time.time() - starting_time)))}')

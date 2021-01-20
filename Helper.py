@@ -1,6 +1,7 @@
 import re
 import os
 from src.utils import general as gen
+from src.utils.general import print_Queue
 from src.website_modules.ArtstationCore import ArtstationCore
 from src.website_modules.DeviantArtCore import DeviantArtCore
 from src.website_modules.PixivCore import PixivCore
@@ -28,5 +29,5 @@ def main_function(arguments):
         api.save_artwork()
 
     else:
-        print("Please enter a valid ArtStation, Deviantart or Pixiv artist link.")
+        print_Queue.put("Please enter a valid ArtStation, Deviantart or Pixiv artist link.")
         exit(0)

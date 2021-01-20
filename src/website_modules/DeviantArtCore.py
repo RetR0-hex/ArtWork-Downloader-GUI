@@ -11,7 +11,7 @@ from multiprocessing.dummy import Pool as ThreadPool
 from multiprocessing import cpu_count
 from src.utils import general as gen
 from src.utils.txtDatabaseHandling import json_to_dict, dict_to_json
-from src.utils.general import image_counter, successful_download_dict
+from src.utils.general import image_counter, successful_download_dict, print_Queue
 
 
 class DeviantArtCore:
@@ -35,7 +35,7 @@ class DeviantArtCore:
         else:
             # Checks if cookies exists or not, if they do.. they are loaded into request's session
             if os.path.exists(os.path.join('cookies', "cookies_deviant.json")):
-                print("Reloading Existing cookies....")
+                print_Queue.put("Reloading Existing cookies....")
                 json_cookies = json_to_dict('cookies', "cookies_deviant.json")
                 if not gen.cookies_expiry_check(json_cookies):
                     self.set_cookies_request(json_cookies)
@@ -45,14 +45,14 @@ class DeviantArtCore:
     def cookies_load(self, recursion=False):
         if os.path.exists(os.path.join('cookies', "cookies_deviant.json")):
             if not recursion:
-                print("Reloading Existing cookies....")
+                print_Queue.put("Reloading Existing cookies....")
             json_cookies = json_to_dict('cookies', "cookies_deviant.json")
             if not gen.cookies_expiry_check(json_cookies):
                 self.set_cookies_request(json_cookies)
             else:
                 self.save_cookies()
         else:
-            print("Didn't find existing cookies, generating new ones.....")
+            print_Queue.put("Didn't find existing cookies, generating new ones.....")
             self.save_cookies()
 
     def save_cookies(self):
@@ -142,7 +142,7 @@ class DeviantArtCore:
         artwork_list_dict = []
         offset = 0
         while True:
-            print("Getting image links (Don't Panic)")
+            print_Queue.put("Getting image links (Don't Panic)")
             params = {
                 'username': self.artist_id,
                 'offset': str(offset),
@@ -231,7 +231,7 @@ class DeviantArtCore:
             try:
                 return self.downloadable_artwork_url(a_extend)
             except requests.exceptions.HTTPError:
-                print("Banned, Will retry in 5 minutes -_-")
+                print_Queue.put("Banned, Will retry in 5 minutes -_-")
                 time.sleep(300)
                 self.find_download_url(a_extend, ext, retry)
             except AttributeError:
@@ -249,7 +249,7 @@ class DeviantArtCore:
         # Checks if images are already downloaded
         if check_existing:
             if gen.check_existing_images(self.existing_images, artwork['deviationId']):
-                print(f"Title: {artwork['title']}, Link: {artwork['url']} is already present.")
+                print_Queue.put(f"Title: {artwork['title']}, Link: {artwork['url']} is already present.")
                 image_counter.val += 1
                 successful_download_dict.append(current_info)
                 return
@@ -257,7 +257,7 @@ class DeviantArtCore:
         #  new shit added to deviantArt, I have no way to bypass this as of now, so the only solution is login
         if 'premiumFolderData' in artwork:
             if not artwork['premiumFolderData']['hasAccess']:
-                print(f"Don't have watching access for image Title: {artwork['title']}, Link: {artwork['url']},"
+                print_Queue.put(f"Don't have watching access for image Title: {artwork['title']}, Link: {artwork['url']},"
                       f"\nPlease watch the artist and then login to re-download these images.")
                 image_counter.val += 1
                 return
@@ -267,16 +267,16 @@ class DeviantArtCore:
         ext = gen.ext_finder(artwork_extended_fetch['media']['baseUri'])
 
         # Image_counter.increments() ads +1 to the class member "val" and returns val after the increment
-        print(f"Currently Downloading: {title} ({str(image_counter.increment())}/{str(image_counter.max)})")
+        print_Queue.put(f"Currently Downloading: {title} ({str(image_counter.increment())}/{str(image_counter.max)})")
         retry = 0
         if artwork_extended_fetch['isDownloadable'] and self.is_user_logged_in:
             url = self.find_download_url(artwork_extended_fetch, ext, retry)
-            r_stream = self.request(url, stream=True)
+            r_stream = self.request(url,  headers={"useragent": gen.random_useragent()}, stream=True)
         else:
             while retry <= 5:
                     try:
                         url = self.find_download_url(artwork_extended_fetch, ext, retry)
-                        r_stream = self.request_without_cookies(url, stream=True)
+                        r_stream = self.request_without_cookies(url, headers={"useragent": gen.random_useragent()}, stream=True)
                         break
                     except requests.exceptions.HTTPError:
                         retry += 1
@@ -294,8 +294,8 @@ class DeviantArtCore:
                 for chunk in r_stream:
                     file.write(chunk)
             except Exception as e:
-                print(f"{title}")
-                print(f"Error {e}")
+                print_Queue.put(f"{title}")
+                print_Queue.put(f"Error {e}")
 
         successful_download_dict.append(current_info)
 
@@ -330,4 +330,4 @@ class DeviantArtCore:
         pool.map(partial(self.download_image, save_dir, check_existing=backup), artworks)
         pool.close()
         pool.join()
-        print(f'Time to Download: {time.strftime("%H:%M:%S", time.gmtime(int(time.time() - starting_time)))}')
+        print_Queue.put(f'Time to Download: {time.strftime("%H:%M:%S", time.gmtime(int(time.time() - starting_time)))}')
