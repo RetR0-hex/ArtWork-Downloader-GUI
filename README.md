@@ -24,7 +24,7 @@ A Python Script that downloads all the images in artist's gallery, for now it on
 to automatically download python requirements use
 `pip install -r <path/to/script/dir>/requirement.txt>`
 
-**If you use my provided 7z file then you don't have to download any of the python requirements, everything needed is provided in the 7z file. Just run the ArtWork Downloader.exe file in the 7z folder.**
+**If you use my provided 7z file then you don't have to download any of the python requirements, everything needed is provided in the 7z file. Just run the ArtWork Downloader.exe file in the 7z archive.**
 
 (btw this was my first time writting a GUI so please go easy on me :) )
 
@@ -32,9 +32,14 @@ to automatically download python requirements use
 
 #### IN ACTION
 ![IN ACTION](https://i.imgur.com/HXUXYRv.gif)
+
+
+**Also has resuming capability. provided the you use the same output location.** 
+
+![RESUMING CAPABILITY](https://i.imgur.com/58DMufZ.gif)
    
 #### For DeviantArt and Pixiv:
-You need an account to download Mature content and downloadable art.
+You need an account to download Mature content.
 Make sure that mature content is enabled on your account. **USE A THROWAWAY ACCOUNT!**
 
 ### Bugs 
