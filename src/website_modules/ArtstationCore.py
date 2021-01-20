@@ -9,9 +9,8 @@ from functools import partial
 from multiprocessing.dummy import Pool as ThreadPool
 from multiprocessing import cpu_count
 from src.utils import general as gen
-from src.utils.txtDatabaseHandling import json_to_dict, dict_to_json
+from src.utils.txtDatabaseHandling import json_to_dict
 from src.utils.general import image_counter, successful_download_dict
-# TODO Separate video links for the video downloader
 
 
 class ArtstationCore:
@@ -73,9 +72,6 @@ class ArtstationCore:
         ext = re.search(r'.\w+(?=\?)', url).group()
         return ext
 
-    def video_downloader(self, extended_artwork_fetch):  # FIXME
-        pass
-
     def download_artwork(self, save_dir, url, title):
         ext = self.ext_finder(url)
         # Image_counter.increments() ads +1 to the class member "val" and returns val after the increment
@@ -101,23 +97,19 @@ class ArtstationCore:
     def multi_assets_download(self, save_dir, artwork, check_existing):
         # Already downloaded images Check
         current_info = {
-                    'hash_id': artwork['hash_id'],
-                    'title': artwork['title'],
-                    'url': artwork['permalink'],
-                    'isDownloaded': True
-                     }
+            'id': artwork['hash_id'],
+            'isDownloaded': True
+        }
 
         if check_existing:
-            for x in self.existing_images:
-                if x["hash_id"] == artwork['hash_id']:
-                    print(f"Title: {artwork['title']}, Link: {artwork['permalink']} is already present.")
-                    image_counter.val += 1
-                    # I know this looks ugly and barely works
-                    successful_download_dict.append(current_info)
-                    return
+            if gen.check_existing_images(self.existing_images, artwork['hash_id']):
+                image_counter.val += 1
+                successful_download_dict.append(current_info)
+                print(f"Title: {artwork['title']}, Link: {artwork['permalink']} is already present.")
+                return
 
         artwork_extended_fetch = self.extended_artwork_fetch(artwork)
-        title = gen.make_windows_legal(artwork_extended_fetch['title'])  # Make windows legal when you merge code
+        title = gen.make_windows_legal(artwork_extended_fetch['title'])
         url_list = self.find_download_url(artwork_extended_fetch)
         image_counter.max = image_counter.max + len(url_list) - 1
         for url in url_list:
@@ -127,9 +119,10 @@ class ArtstationCore:
     def save_artwork(self):
         save_dir = self.arguments.save_location
         starting_time = time.time()
-        # CHecks if the download folder already exists
+        # Checks if the download folder already exists
         if os.path.exists(os.path.join(save_dir, f'{self.artist_id}_artstation', 'successful_download.json')):
-            self.existing_images = json_to_dict(os.path.join(save_dir, f"{self.artist_id}_artstation"), 'successful_download.json')
+            self.existing_images = json_to_dict(os.path.join(save_dir, f"{self.artist_id}_artstation"),
+                                                'successful_download.json')
             save_dir = os.path.join(save_dir, f"{self.artist_id}_artstation")
             backup = True
         else:
@@ -146,4 +139,3 @@ class ArtstationCore:
         pool.close()
         pool.join()
         print(f'Time to Download: {time.strftime("%H:%M:%S", time.gmtime(int(time.time() - starting_time)))}')
-

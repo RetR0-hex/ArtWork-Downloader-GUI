@@ -4,19 +4,10 @@ import os
 import time
 import threading
 from src.utils.txtDatabaseHandling import dict_to_json
-from src.utils.general import url_validator, artwork_url_verifier, image_counter, save_dir_global, successful_download_dict
+from src.utils.general import url_validator, artwork_url_verifier, image_counter, save_dir_global, successful_download_dict, ProgVars
 
 
 root_dir = os.path.dirname(os.path.abspath(__file__))
-
-class ProgVars:
-    def __init__(self):
-        self.url = None
-        self.save_location = root_dir
-        self.username = None
-        self.password = None
-        self.threads = 3
-
 
 # Helper function for the collapsable section
 def collapse(layout, key, visible):
@@ -44,7 +35,7 @@ sg.SetOptions(background_color='#262626',
            text_element_background_color='#262626',
            element_background_color='#2169B9',
            element_text_color='#CBCBCB',
-           scrollbar_color=None,
+           scrollbar_color=None, font=("Arial", 12),
            input_elements_background_color='#F7F3EC',
            progress_meter_color = ('#2169B9', '#DEECFB'),
            button_color=('#CBCBCB','#2169B9'))
@@ -53,18 +44,18 @@ _18_plus_Layout = [[sg.Text("Username", size=(15, 1)), sg.InputText('', key='use
                    [sg.Text('Password', size=(15, 1)), sg.InputText('', key='password', password_char='*')]]
 
 debug_window_layout = [[sg.T("Debug Window", key="-DEBUG WINDOW-")],
-                       [sg.Output(key="output_box", size=(75, 20))]]
+                       [sg.Output(key="output_box", size=(86, 25), font=("Courier", 9))]]
 
 download_button = [[sg.Button('Download')]]
 
-progress_bar_layout = [[sg.ProgressBar(100, orientation='h', size=(50, 20), key="progress_bar")],
-                       [sg.Text("0%", size=(4, 0), pad=((530, 0), (7, 0)), justification='left', key='counter')]]
+progress_bar_layout = [[sg.ProgressBar(100, orientation='h', size=(56.5, 20), key="progress_bar")],
+                       [sg.Text("0%", size=(5, 0), pad=((589, 0), (7, 0)), justification='left', key='counter')]]
 
-layout = [[sg.Text("Please enter the Artist URL.")],
+layout = [[sg.Text("Please Artist's gallery URL.")],
 [sg.Text('Artist URL', size=(15, 1)), sg.InputText('', key="URL")],
 [sg.Text('Output', size=(15, 1)), sg.Input(), sg.FolderBrowse(initial_folder=root_dir, key="save_dir")],
-[sg.Text("Thread count", size=(15, 1)), sg.Slider(range=(1,7), orientation='h', size=(35, 15), default_value=3, key="threads")],
-[sg.T(SYMBOL_DOWN, enable_events=True, k='-OPEN 18+-', text_color='white'), sg.T('18+ Section', enable_events=True, text_color='#ef3939', k='-OPEN 18+-TEXT')],
+[sg.Text("Thread count", size=(15, 1)), sg.Slider(range=(1,7), orientation='h', size=(37, 15), default_value=3, key="threads")],
+[sg.T(SYMBOL_DOWN, enable_events=True, k='-OPEN 18+-', text_color='#ef3939'), sg.T('18+ Section', enable_events=True, text_color='#ef3939', k='-OPEN 18+-TEXT')],
 [collapse(_18_plus_Layout, '-18+-', False)],
 [collapse(debug_window_layout, '-DEBUG-', False)],
 [collapse(progress_bar_layout, '-PROGRESS BAR-', False)],

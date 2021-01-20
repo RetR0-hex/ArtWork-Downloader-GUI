@@ -1,6 +1,4 @@
-import glob
 import os.path
-import pathlib
 import time
 import re
 import logging
@@ -11,7 +9,32 @@ import os
 from urllib.parse import urlparse
 
 
+class MutableStructure:
+
+    def __init__(self, val, _max):
+        self.val = val
+        self.max = _max
+
+    def increment(self):
+        self.val = self.val + 1
+        return self.val
+
+    def decrement(self):
+        self.val = self.val - 1
+
+
+class save_dir_string:
+    def __init__(self, save_dir):
+        self.save_dir = save_dir
+
+    def update(self, save_dir):
+        self.save_dir = save_dir
+
+
 successful_download_dict = []
+# THis is to keep track of image counters and total values out of threads
+image_counter = MutableStructure(0, 0)
+save_dir_global = save_dir_string("")
 
 
 class WebDriverChrome:
@@ -39,45 +62,25 @@ class WebDriverChrome:
         self.driver.set_window_size(width, height)
 
 
-class MutableStructure:
+class ProgVars:
+    def __init__(self):
+        self.url = None
+        self.save_location = None
+        self.username = None
+        self.password = None
+        self.threads = 3
 
-    def __init__(self, val, _max):
-        self.val = val
-        self.max = _max
-
-    def increment(self):
-        self.val = self.val + 1
-        return self.val
-
-    def decrement(self):
-        self.val = self.val - 1
-
-
-class save_dir_string:
-    def __init__(self, save_dir):
-        self.save_dir = save_dir
-
-    def update(self, save_dir):
-        self.save_dir = save_dir
-
-
-# THis is to keep track of image counters and total values out of threads
-image_counter = MutableStructure(0, 0)
-save_dir_global = save_dir_string("")
 
 def intro():
     print('''
-                    _                      _      _____                      _                 _           
-         /\        | |                    | |    |  __ \                    | |               | |          
-        /  \   _ __| |___      _____  _ __| | __ | |  | | _____      ___ __ | | ___   __ _  __| | ___ _ __ 
-       / /\ \ | '__| __\ \ /\ / / _ \| '__| |/ / | |  | |/ _ \ \ /\ / | '_ \| |/ _ \ / _` |/ _` |/ _ | '__|
-      / ____ \| |  | |_ \ V  V | (_) | |  |   <  | |__| | (_) \ V  V /| | | | | (_) | (_| | (_| |  __| |   
-     /_/    \_|_|   \__| \_/\_/ \___/|_|  |_|\_\ |_____/ \___/ \_/\_/ |_| |_|_|\___/ \__,_|\__,_|\___|_|   
-
-                                                                                By RetR0-hex
-                                                                                (Last tested on 06/11/2020)      
-
-    ''')
+     _____     _   _ _ _         _   ____                _           _         
+    |  _  |___| |_| | | |___ ___| |_|    \ ___ _ _ _ ___| |___ ___ _| |___ ___ 
+    |     |  _|  _| | | | . |  _| '_|  |  | . | | | |   | | . | .'| . | -_|  _|
+    |__|__|_| |_| |_____|___|_| |_,_|____/|___|_____|_|_|_|___|__,|___|___|_|
+    
+                                                        By RetR0-hex
+                                                        (Last tested on 20/01/2021)      
+''')
 
 
 def url_validator(url):
@@ -118,19 +121,6 @@ def check_chrome_driver(path=""):
         return False
 
 
-# glob.glob functions returns a list which cannot be worked with os.listdir so we
-# use this function to kinda join the list and produces a string that can be iterated on
-def user_directory_input(dir_input_question):
-    path_to_directory_user = input(dir_input_question)
-    path_to_directory = glob.glob(path_to_directory_user)
-    if os.path.isdir(pathlib.Path(path_to_directory_user)):
-        print("\n Ok the File Exists \n")
-        return list_dir_to_string(path_to_directory)
-    else:
-        print("\n Error! This Directory doesn't exist \n")
-        user_directory_input(dir_input_question)
-
-
 def make_directory(path, artist_name):
     new_path = os.path.join(path, artist_name)
     if os.path.exists(new_path):
@@ -138,18 +128,6 @@ def make_directory(path, artist_name):
     else:
         os.makedirs(new_path)
     return new_path
-
-
-def infinite_scroll(scroll_pause, driver):
-    last_height = driver.execute_script("return document.body.scrollHeight")
-    while True:
-        driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-        time.sleep(scroll_pause)
-        new_height = driver.execute_script("return document.body.scrollHeight")
-        print("Waiting for the page to fully load, Please Wait. (Don't Panic)")
-        if new_height == last_height:
-           break
-        last_height = new_height
 
 
 def make_windows_legal(string):
@@ -174,6 +152,13 @@ def cookies_expiry_check(cookies):
             pass
     return False
 
+
+def check_existing_images(existing_images, artwork_id):
+    for x in existing_images:
+        if x["id"] == artwork_id:
+            return True
+
+    return False
 
 
 

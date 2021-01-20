@@ -6,7 +6,6 @@ import time
 import random
 import os
 import re
-import selenium.common
 from functools import partial
 from multiprocessing.dummy import Pool as ThreadPool
 from multiprocessing import cpu_count
@@ -14,7 +13,6 @@ from src.utils import general as gen
 from src.utils.txtDatabaseHandling import json_to_dict, dict_to_json
 from src.utils.general import image_counter, successful_download_dict
 
-# FIXME LOGGING NEEDS Testing mate
 
 class DeviantArtCore:
     def __init__(self, arguments):
@@ -60,14 +58,9 @@ class DeviantArtCore:
     def save_cookies(self):
         if os.path.exists('cookies'):
             result = self.auto_login()
-            if result != 'wrong_credentials':
-                cookies = self.cookies_cleaner(result)
-                dict_to_json(cookies, 'cookies', 'cookies_deviant.json')
-                self.cookies_load(recursion=True)
-            else:
-                cookies = self.login()
-                dict_to_json(cookies, 'cookies', 'cookies_deviant.json')
-                self.cookies_load(recursion=True)
+            cookies = self.cookies_cleaner(result)
+            dict_to_json(cookies, 'cookies', 'cookies_deviant.json')
+            self.cookies_load(recursion=True)
         else:
             os.mkdir('cookies')
             self.save_cookies()
@@ -99,12 +92,15 @@ class DeviantArtCore:
             value = cookie['value']
             self.request_session.cookies[name] = str(value)
 
-    def login(self):
-        retry_url = 'https://www.deviantart.com/_sisu/do/signin'
-        login_url = 'https://www.deviantart.com/users/login'
+    def auto_login(self):
         self.chrome.set_driver()
         self.chrome.set_windows_size(1000, 1000)
+        retry_url = 'https://www.deviantart.com/_sisu/do/signin'
+        login_url = 'https://www.deviantart.com/users/login'
         self.chrome.driver.get(login_url)
+        self.chrome.driver.find_element_by_id('username').send_keys(self.arguments.username)
+        self.chrome.driver.find_element_by_id('password').send_keys(self.arguments.password)
+        # self.chrome.driver.find_element_by_id('loginbutton').click()
         while True:
             current_url = self.chrome.driver.current_url
             if (current_url != retry_url) and (current_url != login_url):
@@ -112,35 +108,9 @@ class DeviantArtCore:
             else:
                 time.sleep(2)
         cookies = self.chrome.driver.get_cookies()
-        self.chrome.driver.close()
         cookies = self.cookies_cleaner(cookies)
+        self.chrome.driver.close()
         return cookies
-
-    def auto_login(self):
-        self.chrome.set_driver()
-        self.chrome.set_windows_size(1000, 1000)
-        retry_url = 'https://www.deviantart.com/_sisu/do/signin'
-        login_url = 'https://www.deviantart.com/users/login'
-        self.chrome.driver.get(login_url)
-        try:
-            self.chrome.driver.find_element_by_id('username').send_keys(self.arguments.username)
-            self.chrome.driver.find_element_by_id('password').send_keys(self.arguments.password)
-            # self.chrome.driver.find_element_by_id('loginbutton').click()
-            while True:
-                current_url = self.chrome.driver.current_url
-                if (current_url != retry_url) and (current_url != login_url):
-                    break
-                else:
-                    time.sleep(2)
-            cookies = self.chrome.driver.get_cookies()
-            cookies = self.cookies_cleaner(cookies)
-            self.chrome.driver.close()
-            return cookies
-
-        except selenium.common.exceptions.NoSuchElementException:
-            print("ERROR: Captcha Encountered.....")
-            self.chrome.driver.close()
-            return 'wrong_credentials'
 
     def request(self, url, **kwargs):
         result = self.request_session.get(url, **kwargs)
@@ -272,30 +242,24 @@ class DeviantArtCore:
     def download_image(self, save_dir, artwork, check_existing):
         # Copy these to other download classes later
         current_info = {
-                    'deviationId': artwork['deviationId'],
-                    'title': artwork['title'],
-                    'url': artwork['url'],
+                    'id': artwork['deviationId'],
                     'isDownloaded': True
                      }
 
         # Checks if images are already downloaded
         if check_existing:
-            for x in self.existing_images:
-                if x["deviationId"] == artwork['deviationId']:
-                    print(f"Title: {artwork['title']}, Link: {artwork['url']} is already present.")
-                    image_counter.val += 1
-                    # I know this looks ugly and barely works
-                    successful_download_dict.append(current_info)
-                    return
+            if gen.check_existing_images(self.existing_images, artwork['deviationId']):
+                print(f"Title: {artwork['title']}, Link: {artwork['url']} is already present.")
+                image_counter.val += 1
+                successful_download_dict.append(current_info)
+                return
 
         #  new shit added to deviantArt, I have no way to bypass this as of now, so the only solution is login
         if 'premiumFolderData' in artwork:
             if not artwork['premiumFolderData']['hasAccess']:
                 print(f"Don't have watching access for image Title: {artwork['title']}, Link: {artwork['url']},"
                       f"\nPlease watch the artist and then login to re-download these images.")
-                # Incrementing Val so it doesnt die
                 image_counter.val += 1
-                # Return from here as he don't have the image data anymore nor do we have access to images
                 return
 
         artwork_extended_fetch = self.extended_fetch_artwork(artwork)

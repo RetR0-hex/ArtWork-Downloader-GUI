@@ -6,7 +6,6 @@ from src.utils import general as gen
 import re
 import random
 import time
-import selenium.common
 from functools import partial
 from multiprocessing.dummy import Pool as ThreadPool
 from multiprocessing import cpu_count
@@ -33,7 +32,8 @@ class PixivCore:
             self.artist_link = self.artist_link + '/'
         self.artist_id = re.search(r'(?!users/")\d+/', self.artist_link).group()
         self.artist_id = re.sub(r"\/", "", self.artist_id)
-        self.artist_name = gen.make_windows_legal(self.get_artist_name())
+        self.artist_name = gen.make_windows_legal(re.sub(r" - pixiv", "", self.get_artist_name()))
+
 
         if self.arguments.username:
             self.chrome = gen.WebDriverChrome()
@@ -64,14 +64,9 @@ class PixivCore:
     def save_cookies(self):
         if os.path.exists('cookies'):
             result = self.auto_login()
-            if result != 'wrong_credentials':
-                cookies = self.cookies_cleaner(result)
-                dict_to_json(cookies, 'cookies', 'cookies_pixiv.json')
-                self.cookies_load(recursion=True)
-            else:
-                cookies = self.login()
-                dict_to_json(cookies, 'cookies', 'cookies_pixiv.json')
-                self.cookies_load(recursion=True)
+            cookies = self.cookies_cleaner(result)
+            dict_to_json(cookies, 'cookies', 'cookies_pixiv.json')
+            self.cookies_load(recursion=True)
         else:
             os.mkdir('cookies')
             self.save_cookies()
@@ -87,50 +82,28 @@ class PixivCore:
                 pass
         return return_cookies
 
-    def login(self):
-        login_url = 'https://accounts.pixiv.net/login'
-        self.chrome.set_driver()
-        self.chrome.set_windows_size(1000, 1000)
-        self.chrome.driver.get(login_url)
-        while True:
-            current_url = self.chrome.driver.current_url
-            if current_url != login_url:
-                if self.chrome.driver.execute_script('''return document.readyState''') == 'complete':
-                    break
-            else:
-                time.sleep(3)
-        cookies = self.chrome.driver.get_cookies()
-        cookies = self.cookies_cleaner(cookies)
-        self.chrome.driver.close()
-        return cookies
-
     def auto_login(self):
         self.chrome.set_driver()
         self.chrome.set_windows_size(1000, 1000)
         login_url = 'https://accounts.pixiv.net/login'
         self.chrome.driver.get(login_url)
-        try:
-            self.chrome.driver.find_element_by_css_selector('''#LoginComponent > form > div 
-                                                            > div > input''').send_keys(self.arguments.username)
-            self.chrome.driver.find_element_by_css_selector('''#LoginComponent > form > div.input-field-group
-                                                            > div:nth-child(2) > input''').send_keys(
-                self.arguments.password)
-            # self.chrome.driver.find_element_by_css_selector('#LoginComponent > form > button').click()
-            while True:
-                current_url = self.chrome.driver.current_url
-                if self.chrome.driver.execute_script('''return document.readyState''') == 'complete':
-                    if current_url != login_url:
-                        break
-                    else:
-                        time.sleep(3)
-            cookies = self.chrome.driver.get_cookies()
-            cookies = self.cookies_cleaner(cookies)
-            self.chrome.driver.close()
-            return cookies
-        except selenium.common.exceptions.NoSuchElementException:
-            print("Captcha.....")
-            self.chrome.driver.close()
-            return 'wrong_credentials'
+        self.chrome.driver.find_element_by_css_selector('''#LoginComponent > form > div 
+                                                        > div > input''').send_keys(self.arguments.username)
+        self.chrome.driver.find_element_by_css_selector('''#LoginComponent > form > div.input-field-group
+                                                        > div:nth-child(2) > input''').send_keys(
+            self.arguments.password)
+        # self.chrome.driver.find_element_by_css_selector('#LoginComponent > form > button').click()
+        while True:
+            current_url = self.chrome.driver.current_url
+            if self.chrome.driver.execute_script('''return document.readyState''') == 'complete':
+                if current_url != login_url:
+                    break
+                else:
+                    time.sleep(3)
+        cookies = self.chrome.driver.get_cookies()
+        cookies = self.cookies_cleaner(cookies)
+        self.chrome.driver.close()
+        return cookies
 
     def set_cookies_request(self, json_cookies):
         for cookie in json_cookies:
@@ -188,18 +161,16 @@ class PixivCore:
 
     def download_artwork(self, save_dir, artwork_id, check_existing):
         current_info = {
-                    'artwork_id': artwork_id,
+                    'id': artwork_id,
                     'isDownloaded': True
                      }
 
         if check_existing:
-            for x in self.existing_images:
-                if x["artwork_id"] == artwork_id:
-                    print(f"ID: {artwork_id} is already present.")
-                    image_counter.val += 1
-                    # I know this looks ugly and barely works
-                    successful_download_dict.append(current_info)
-                    return
+            if (gen.check_existing_images(self.existing_images, artwork_id)):
+                print(f"ID: {artwork_id} is already present.")
+                image_counter.val += 1
+                successful_download_dict.append(current_info)
+                return
 
         artwork_extended = self.extended_artwork_fetch(artwork_id)
         title = gen.make_windows_legal(self.get_title(artwork_extended))
