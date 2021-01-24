@@ -50,19 +50,20 @@ class DeviantArtImage:
             'username': self.artist_id,
             'type': 'art'
         }
-        extended_fetch = _clear_request.get(url, headers={'user-agent': gen.random_useragent()}, params=params).json()
+        extended_fetch = _request.get(url, headers={'user-agent': gen.random_useragent()}, params=params).json()
         print_Queue.put("extended_artwork fetch function delay")
         time.sleep(10)
         return extended_fetch['deviation']['extended']
 
     def get_downloadable_image_url(self):
-        # Original Quality so login is preferred
-        html = _request.get(self.image_url).text
-        # "?=" 	lookahead assertion: matches without consuming
-        with open('test.html', 'w') as file:
-            file.writelines(html)
-        url = re.search(r'(?!href=")https://www.deviantart.com/download/.+?(?=")', html).group()
-        return url
+        # # Original Quality so login is preferred
+        # html = _request.get(self.image_url).text
+        # # "?=" 	lookahead assertion: matches without consuming
+        # with open('test.html', 'w') as file:
+        #     file.writelines(html)
+        # url = re.search(r'(?!href=")https://www.deviantart.com/download/.+?(?=")', html).group()
+        # return url
+        return self.extended_artwork['download']['url']
 
     def get_undownloadable_image_url(self):
 
