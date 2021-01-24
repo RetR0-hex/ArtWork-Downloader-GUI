@@ -159,10 +159,7 @@ while True:
     # Updates the completion ratio
     if image_counter.max is not 0:
         percentage = round((image_counter.val / image_counter.max)*100)
-    else:
-        percentage = 0
-
-    window.FindElement('counter').Update(f"{percentage}%")
+        window.FindElement('counter').Update(f"{percentage}%")
 
     # Prints the whole info queue at each loop cycle
     while print_Queue.qsize() is not 0:

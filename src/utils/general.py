@@ -1,4 +1,7 @@
 import os.path
+import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 import time
 import re
 import logging
@@ -10,7 +13,8 @@ import os
 from urllib.parse import urlparse
 from queue import Queue
 
-class IMAGECOUNTERCLASS:
+
+class ImageCounter:
 
     def __init__(self, val, _max):
         self.val = val
@@ -34,18 +38,39 @@ class save_dir_string:
 
 successful_download_dict = []
 # THis is to keep track of image counters and total values out of threads
-image_counter = IMAGECOUNTERCLASS(0, 0)
+image_counter = ImageCounter(0, 0)
 print_Queue = Queue(maxsize=0)
 save_dir_global = save_dir_string("")
+
+
+# A Wrapper around request functions that are needed for cores and makes request usage a little easier
+class Request:
+
+    def __init__(self, backoff_factor=0.3):
+        self.request = requests.Session()
+        retry = Retry(total=10, backoff_factor=backoff_factor, status_forcelist=[500, 502, 503, 504])
+        self.request.mount('http://', HTTPAdapter(max_retries=retry))
+        self.request.mount('https://', HTTPAdapter(max_retries=retry))
+
+    def add_cookies(self, cookies_list_dict):
+        for cookie in cookies_list_dict:
+            name = cookie['name']
+            value = cookie['value']
+            self.request.cookies[name] = str(value)
+
+    def get(self, url, **kwargs):
+        result = self.request.get(url, **kwargs)
+        result.raise_for_status()
+        return result
 
 
 class WebDriverChrome:
 
     def __init__(self):
         self.chrome_options = Options()
-        self.chrome_options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.622.69 Safari/537.36")
+        self.chrome_options.add_argument(
+            "user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.622.69 Safari/537.36")
         self.chrome_options.add_experimental_option('excludeSwitches', ['enable-logging'])
-
 
     def set_headless_options(self):
         self.chrome_options.add_argument("--headless")
@@ -92,6 +117,7 @@ def url_validator(url):
         return all([test.scheme, test.netloc, test.path])
     except:
         return False
+
 
 def random_useragent():
     useragents = [
@@ -204,8 +230,3 @@ def check_existing_images(existing_images, artwork_id):
             return True
 
     return False
-
-
-
-
-
