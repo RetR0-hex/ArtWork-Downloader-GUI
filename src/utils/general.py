@@ -68,8 +68,7 @@ class WebDriverChrome:
 
     def __init__(self):
         self.chrome_options = Options()
-        self.chrome_options.add_argument(
-            "user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.622.69 Safari/537.36")
+        self.chrome_options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.622.69 Safari/537.36")
         self.chrome_options.add_experimental_option('excludeSwitches', ['enable-logging'])
 
     def set_headless_options(self):

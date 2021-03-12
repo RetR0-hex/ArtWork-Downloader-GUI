@@ -3,7 +3,6 @@ import time
 import random
 import os
 import re
-from html import unescape
 from functools import partial
 from multiprocessing.dummy import Pool as ThreadPool
 from multiprocessing import cpu_count
@@ -18,6 +17,8 @@ _request = Request(backoff_factor=0.5)
 # Clear Global Request Instance
 # This is the instance that will be called when you need to access something without cookies.
 _clear_request = Request(backoff_factor=0.5)
+
+last_download_time = time.time()
 
 
 class DeviantArtImage:
@@ -34,7 +35,7 @@ class DeviantArtImage:
         self.extended_artwork = None
         self.downloadable_image_link = None
         self.ext = gen.ext_finder(artwork['media']['baseUri'])
-        # self.extended_artwork = None
+        self.extended_artwork = None
         self.image_download_links = queue.Queue(maxsize=0)
 
         # Image access bools
@@ -44,25 +45,33 @@ class DeviantArtImage:
         self.isUserLoggedIn = isLoggedin
 
     def extended_fetch_artwork(self, artwork):
+        time.sleep(10)
         url = 'https://www.deviantart.com/_napi/shared_api/deviation/extended_fetch?'
         params = {
             'deviationid': artwork['deviationId'],
             'username': self.artist_id,
             'type': 'art'
         }
-        extended_fetch = _request.get(url, headers={'user-agent': gen.random_useragent()}, params=params).json()
-        print_Queue.put("extended_artwork fetch function delay")
-        time.sleep(10)
+
+        if self.isDownloadable and self.isUserLoggedIn:
+            extended_fetch = _request.get(url, params=params).json()
+        else:
+            extended_fetch = _clear_request.get(url, headers={'user-agent': gen.random_useragent()}, params=params).json()
+
+        # This will also update the current userLoggedin status
+        # If the cookies got expired during the download, this will also remove the
+        # the outdated cookies file, this is kinda ugly and really hacky solution. I will
+        # Write a proper solution to the de-logging problem later.
+        
+        # Only update if it their values are different
+        if self.isUserLoggedIn != extended_fetch['session']['user']['loggedin']:
+            self.isUserLoggedIn = extended_fetch['session']['user']['loggedin']
+            print_Queue.put("Cookies got expired, relogin when you download again.")
+            os.remove(os.path.join('cookies', 'cookies_deviant.json'))
+
         return extended_fetch['deviation']['extended']
 
     def get_downloadable_image_url(self):
-        # # Original Quality so login is preferred
-        # html = _request.get(self.image_url).text
-        # # "?=" 	lookahead assertion: matches without consuming
-        # with open('test.html', 'w') as file:
-        #     file.writelines(html)
-        # url = re.search(r'(?!href=")https://www.deviantart.com/download/.+?(?=")', html).group()
-        # return url
         return self.extended_artwork['download']['url']
 
     def get_undownloadable_image_url(self):
@@ -178,7 +187,6 @@ class DeviantArtImageDownloader:
             response = _request.get(self._deviant_image.downloadable_image_link)
         except requests.exceptions.HTTPError:
             print_Queue.put("Banned, Will retry in 5 minutes -_-")
-            print_Queue.put("get_downloadable_image_data fetch function delay")
             time.sleep(300)
             self.get_downloadable_image_data()
         return response
@@ -196,6 +204,7 @@ class DeviantArtImageDownloader:
 
     def download_image(self):
         response = None
+        global last_download_time
 
         if self.do_image_already_exists:
             if gen.check_existing_images(self.existing_images, self._deviant_image.image_id):
@@ -211,14 +220,23 @@ class DeviantArtImageDownloader:
         self._deviant_image.generate_links()
 
         if self._deviant_image.isDownloadable and self._deviant_image.isUserLoggedIn:
+            if time.time() - last_download_time <= 60:
+                print_Queue.put("Download Delay (60s)")
+                time.sleep(60)
             response = self.get_downloadable_image_data()
             self.successful_download()
+            last_download_time = time.time()
             return response
+
+        if time.time() - last_download_time <= 15:
+            print_Queue.put("Download Delay (15s)")
+            time.sleep(15)
 
         # if images are not downloadable then we will call another function
         response = self.get_undownloadable_image_data()
         self.successful_download()
-        # Giving a little breathing room to the deviantART API
+        # Giving a little breathing room to the deviantART APT
+        last_download_time = time.time()
         return response
 
     def save_image(self):
@@ -226,8 +244,6 @@ class DeviantArtImageDownloader:
         if response is not None:
             with open(self.path_w_image_name, 'wb') as file:
                 file.write(response.content)
-            print_Queue.put("save_image fetch function delay")
-            time.sleep(15)
 
     def generate_path_name(self, save_dir):
         path_w_name = os.path.join(save_dir, self._deviant_image.image_name
