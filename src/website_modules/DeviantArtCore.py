@@ -220,16 +220,16 @@ class DeviantArtImageDownloader:
         self._deviant_image.generate_links()
 
         if self._deviant_image.isDownloadable and self._deviant_image.isUserLoggedIn:
-            if time.time() - last_download_time <= 60:
-                print_Queue.put("Download Delay (60s)")
+            if time.time() - last_download_time <= 20:
+                print_Queue.put("Download Delay (20s)")
                 time.sleep(60)
             response = self.get_downloadable_image_data()
             self.successful_download()
             last_download_time = time.time()
             return response
 
-        if time.time() - last_download_time <= 15:
-            print_Queue.put("Download Delay (15s)")
+        if time.time() - last_download_time <= 5:
+            print_Queue.put("Download Delay (5s)")
             time.sleep(15)
 
         # if images are not downloadable then we will call another function
