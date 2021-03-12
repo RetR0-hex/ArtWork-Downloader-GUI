@@ -10,25 +10,17 @@ from multiprocessing.dummy import Pool as ThreadPool
 from multiprocessing import cpu_count
 from src.utils import general as gen
 from src.utils.txtDatabaseHandling import json_to_dict
-from src.utils.general import image_counter, successful_download_dict, print_Queue
+from src.utils.general import image_counter, successful_download_dict, print_Queue, Request
 
 
 class ArtstationCore:
     def __init__(self, arguments):
-        self.request_session = requests.Session()
-        self.retry = Retry(total=10, backoff_factor=0.3, status_forcelist=[500, 502, 503, 504])
-        self.request_session.mount('http://', HTTPAdapter(max_retries=self.retry))
-        self.request_session.mount('https://', HTTPAdapter(max_retries=self.retry))
+        self.request = Request(backoff_factor=0.3)
         self.arguments = arguments
         self.artist_url = self.arguments.url
         if self.artist_url[-1] != '/':
             self.artist_url += '/'
         self.artist_id = re.search(r"(?<=.com/).[a-zA-Z0-9-_]*", self.artist_url).group()
-
-    def request(self, url, **kwargs):
-        result = self.request_session.get(url, **kwargs)
-        result.raise_for_status()
-        return result
 
     def artist_artworks_list(self):
         url = f'https://www.artstation.com/users/{self.artist_id}/projects.json?'
@@ -41,7 +33,7 @@ class ArtstationCore:
                 'page': page_count
             }
 
-            res = self.request(url, params=params).json()
+            res = self.request.get(url, params=params).json()
             total_count = res['total_count']
             image_count += len(res['data'])
             for data in res['data']:
@@ -54,7 +46,7 @@ class ArtstationCore:
     def extended_artwork_fetch(self, artwork):
         hash_id = artwork['hash_id']
         url = f"https://www.artstation.com/projects/{hash_id}.json"
-        res = self.request(url).json()
+        res = self.request.get(url).json()
         return res
 
     def find_download_url(self, extended_artwork_fetch):
@@ -79,9 +71,9 @@ class ArtstationCore:
         _4k_url = re.sub(r"large", "4k", url)
         # 4k Check
         try:
-            r_stream = self.request(_4k_url, stream=True)
+            r_stream = self.request.get(_4k_url, stream=True)
         except requests.exceptions.HTTPError:
-            r_stream = self.request(url, stream=True)
+            r_stream = self.request.get(url, stream=True)
         path_with_name = os.path.join(save_dir, title + f"_by_{self.artist_id}" + ext)
         img_number = random.randint(0, 1000)
         if os.path.exists(path_with_name):
